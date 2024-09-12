@@ -1,0 +1,135 @@
+services:
+  nginx:
+    container_name: inception_nginx
+    build: ./requirements/nginx/
+    image: nginx
+    depends_on:
+      - wordpress
+    ports:
+      - "443:443"
+    volumes:
+      - ./requirements/nginx/conf/:/etc/nginx/http.d/
+      - ./requirements/nginx/tools:/etc/nginx/ssl/
+      - www-vol:/var/www/html/wordpress
+    restart: always
+    networks:
+      - inception
+  
+  mariadb:
+    container_name: inception_mariadb
+    image: mariadb
+    build:
+      context: ./requirements/mariadb/
+      args:
+        DB_NAME: ${DB_NAME}
+        DB_USER: ${DB_USER}
+        DB_PASS: ${DB_PASS}
+        DB_ROOT: ${DB_ROOT}
+    ports:
+      - "3306:3306"
+    volumes:
+     - db-volume:/var/lib/mysql
+    restart: always
+    networks:
+      - inception
+
+  wordpress:
+    container_name: inception_wordpress
+    image: wordpress
+    build:
+      context: ./requirements/wordpress/
+      args:
+        DB_NAME: ${DB_NAME}
+        DB_USER: ${DB_USER}
+        DB_PASS: ${DB_PASS}
+        DB_HOST: ${DB_HOST}
+    volumes:
+      - www-vol:/var/www/html/wordpress
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+    restart: always
+  
+  redis:
+    container_name: inception_redis
+    image: redis
+    build: ./requirements/bonus/redis/
+    ports:
+      - "6379:6379"
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: always
+  
+  vsftpd:
+    container_name: inception_vsftpd
+    image: vsftpd
+    build:
+      context: ./requirements/bonus/vsftpd/
+      args:
+        FTP_USR: ${FTP_USR}
+        FTP_PWD: ${FTP_PWD}
+    ports:
+      - "21:21"
+    volumes:
+      - www-vol:/var/www
+    networks:
+     - inception
+    restart: always
+
+  adminer:
+    container_name: inception_adminer
+    image: adminer
+    build:
+      context: requirements/bonus/adminer/
+    depends_on:
+      - mariadb
+    ports:
+      - "8081:8081"
+    networks:
+     - inception
+    restart: always
+  
+  website:
+    container_name: inception_website
+    image: website
+    build:
+      context: requirements/bonus/website/
+    ports:
+      - "90:90"
+    restart: always
+  
+  cadvisor:
+    container_name: inception_cadvisor
+    image: cadvisor
+    build:
+      context: requirements/bonus/cAdvisor/
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    restart: always
+
+volumes:
+  www-vol:
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/${USER}/data/www-vol
+  db-volume:
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/${USER}/data/db-volume
+
+networks:
+  inception:
+    driver: bridge
