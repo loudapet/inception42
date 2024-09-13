@@ -1,7 +1,9 @@
 services:
   nginx:
     container_name: inception_nginx
-    build: ./requirements/nginx/
+    build:
+      context: .
+      dockerfile: requirements/nginx/Dockerfile
     image: nginx
     depends_on:
       - wordpress
@@ -19,12 +21,14 @@ services:
     container_name: inception_mariadb
     image: mariadb
     build:
-      context: ./requirements/mariadb/
+      context: .
+      dockerfile: requirements/mariadb/Dockerfile
+      secrets:
+        - db_root_password
+        - db_password
       args:
         DB_NAME: ${DB_NAME}
         DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
-        DB_ROOT: ${DB_ROOT}
     ports:
       - "3306:3306"
     volumes:
@@ -37,12 +41,14 @@ services:
     container_name: inception_wordpress
     image: wordpress
     build:
-      context: ./requirements/wordpress/
+      context: .
+      dockerfile: requirements/wordpress/Dockerfile
       args:
         DB_NAME: ${DB_NAME}
         DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
         DB_HOST: ${DB_HOST}
+      secrets:
+        - db_password
     volumes:
       - www-vol:/var/www/html/wordpress
     depends_on:
@@ -70,7 +76,8 @@ services:
       context: ./requirements/bonus/vsftpd/
       args:
         FTP_USR: ${FTP_USR}
-        FTP_PWD: ${FTP_PWD}
+      secrets:
+        - ftp_pass
     ports:
       - "21:21"
     volumes:
@@ -118,6 +125,10 @@ services:
       - /dev/kmsg
     restart: always
 
+networks:
+  inception:
+    driver: bridge
+
 volumes:
   www-vol:
     driver_opts:
@@ -130,6 +141,10 @@ volumes:
       type: none
       device: /home/${USER}/data/db-volume
 
-networks:
-  inception:
-    driver: bridge
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  ftp_pass:
+    file: ../secrets/ftp_pass.txt

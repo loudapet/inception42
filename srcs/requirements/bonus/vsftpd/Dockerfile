@@ -1,11 +1,12 @@
 FROM alpine:3.19
 
-ARG FTP_USR \
-    FTP_PWD
+ARG FTP_USR
 
 RUN apk update && apk upgrade && \
     apk add --no-cache vsftpd
-RUN adduser -h /var/www -s /bin/false -D ${FTP_USR} && \
+RUN  --mount=type=secret,id=ftp_pass \
+    export FTP_PWD=$(cat /run/secrets/ftp_pass) && \
+    adduser -h /var/www -s /bin/false -D ${FTP_USR} && \
     echo "${FTP_USR}:${FTP_PWD}" | /usr/sbin/chpasswd && \
     adduser ${FTP_USR} root
 RUN sed -i "s|#chroot_local_user=YES|chroot_local_user=YES|g"  /etc/vsftpd/vsftpd.conf && \

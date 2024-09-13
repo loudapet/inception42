@@ -2,7 +2,6 @@ FROM alpine:3.19
 
 ARG DB_NAME \
     DB_USER \
-    DB_PASS \
 	DB_HOST
 
 RUN apk update && apk upgrade && apk add --no-cache \
@@ -34,9 +33,12 @@ RUN wget https://wordpress.org/latest.tar.gz && \
 	mkdir -p /var/www/html/wordpress && \
 	cp -r /wordpress/* /var/www/html/wordpress/
 
-COPY ./conf/wp-config-create.sh .
+COPY requirements/wordpress/conf/wp-config-create.sh .
 
-RUN sh wp-config-create.sh && \
+RUN --mount=type=secret,id=db_password \
+	export DB_PASS=$(cat /run/secrets/db_password) && \
+	echo $DB_PASS >> test.txt && \
+	sh wp-config-create.sh && \
 	rm wp-config-create.sh && \
 	chmod -R 0777 /var/www/html/wordpress/wp-content/ && \
 	rm -rf /wordpress /latest.tar.gz
